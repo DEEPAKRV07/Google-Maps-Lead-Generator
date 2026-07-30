@@ -7,47 +7,70 @@ applies conditional formatting, and generates top-tier sales workbooks.
 import os
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-from openpyxl.utils.dataframe import dataframe_to_rows
 import pandas as pd
 import config
+
+
+def has_valid_value(value):
+    """
+    Returns True only if a field contains a real, non-empty value.
+    Filters out None, NaN, whitespace, and fallback strings like 'No Website', 'N/A', etc.
+    """
+    if value is None or pd.isna(value):
+        return False
+
+    val_str = str(value).strip().lower()
+    if not val_str:
+        return False
+
+    invalid_patterns = {
+        "none", "nan", "n/a", "null", "-",
+        "no website", "no phone", "no email", "no whatsapp",
+        "no facebook", "no instagram", "no linkedin"
+    }
+
+    if val_str in invalid_patterns:
+        return False
+
+    return True
 
 
 def calculate_priority_score(row):
     score = 0
 
     # Email available +30
-    email = str(row.get("Email", "") or "").strip()
-    if email and "@" in email:
+    email = row.get("Email")
+    if has_valid_value(email) and "@" in str(email):
         score += 30
 
     # Website available +20
-    website = str(row.get("Website", "") or "").strip()
-    if website:
+    website = row.get("Website")
+    if has_valid_value(website):
         score += 20
 
     # Phone available +15
-    phone = str(row.get("Phone", "") or "").strip()
-    if phone:
+    phone = row.get("Phone")
+    if has_valid_value(phone):
         score += 15
 
     # WhatsApp available +15
-    whatsapp = str(row.get("WhatsApp", "") or "").strip()
-    if whatsapp:
+    whatsapp = row.get("WhatsApp")
+    if has_valid_value(whatsapp):
         score += 15
 
     # LinkedIn available +8
-    linkedin = str(row.get("LinkedIn", "") or "").strip()
-    if linkedin:
+    linkedin = row.get("LinkedIn")
+    if has_valid_value(linkedin):
         score += 8
 
     # Facebook available +5
-    facebook = str(row.get("Facebook", "") or "").strip()
-    if facebook:
+    facebook = row.get("Facebook")
+    if has_valid_value(facebook):
         score += 5
 
     # Instagram available +5
-    instagram = str(row.get("Instagram", "") or "").strip()
-    if instagram:
+    instagram = row.get("Instagram")
+    if has_valid_value(instagram):
         score += 5
 
     # Rating ≥ 4.5 +8
@@ -72,8 +95,8 @@ def calculate_priority_score(row):
         pass
 
     # Working website +5 / Broken website +0
-    web_status = str(row.get("Website Status", "") or "").strip()
-    if web_status == "Working":
+    web_status = row.get("Website Status")
+    if has_valid_value(web_status) and str(web_status).strip().lower() == "working":
         score += 5
 
     return score
@@ -93,22 +116,22 @@ def get_priority_level(score):
 
 
 def get_next_action(row):
-    email = str(row.get("Email", "") or "").strip()
-    whatsapp = str(row.get("WhatsApp", "") or "").strip()
-    phone = str(row.get("Phone", "") or "").strip()
-    website = str(row.get("Website", "") or "").strip()
-    facebook = str(row.get("Facebook", "") or "").strip()
-    instagram = str(row.get("Instagram", "") or "").strip()
+    email = row.get("Email")
+    whatsapp = row.get("WhatsApp")
+    phone = row.get("Phone")
+    website = row.get("Website")
+    facebook = row.get("Facebook")
+    instagram = row.get("Instagram")
 
-    if email and "@" in email:
+    if has_valid_value(email) and "@" in str(email):
         return "Email First"
-    elif whatsapp:
+    elif has_valid_value(whatsapp):
         return "WhatsApp Outreach"
-    elif phone:
+    elif has_valid_value(phone):
         return "Call Business"
-    elif website:
+    elif has_valid_value(website):
         return "Visit Website"
-    elif facebook or instagram:
+    elif has_valid_value(facebook) or has_valid_value(instagram):
         return "Social Media Outreach"
     else:
         return "Manual Research"
@@ -229,13 +252,13 @@ def update_summary_workbook(df):
             ("Highest Score", max_score),
             ("Lowest Score", min_score),
             ("Average Rating", avg_rating if not pd.isna(avg_rating) else 0.0),
-            ("Businesses with Email", sum(1 for e in df["Email"] if str(e).strip() and "@" in str(e))),
-            ("Businesses with Website", sum(1 for w in df["Website"] if str(w).strip())),
-            ("Businesses with Phone", sum(1 for p in df["Phone"] if str(p).strip())),
-            ("Businesses with WhatsApp", sum(1 for w in df["WhatsApp"] if str(w).strip())),
-            ("Businesses with LinkedIn", sum(1 for l in df["LinkedIn"] if str(l).strip())),
-            ("Businesses with Facebook", sum(1 for f in df["Facebook"] if str(f).strip())),
-            ("Businesses with Instagram", sum(1 for i in df["Instagram"] if str(i).strip()))
+            ("Businesses with Email", sum(1 for e in df["Email"] if has_valid_value(e) and "@" in str(e))),
+            ("Businesses with Website", sum(1 for w in df["Website"] if has_valid_value(w))),
+            ("Businesses with Phone", sum(1 for p in df["Phone"] if has_valid_value(p))),
+            ("Businesses with WhatsApp", sum(1 for w in df["WhatsApp"] if has_valid_value(w))),
+            ("Businesses with LinkedIn", sum(1 for l in df["LinkedIn"] if has_valid_value(l))),
+            ("Businesses with Facebook", sum(1 for f in df["Facebook"] if has_valid_value(f))),
+            ("Businesses with Instagram", sum(1 for i in df["Instagram"] if has_valid_value(i)))
         ]
 
         ws.cell(row=3, column=1, value="Metric").fill = header_fill
