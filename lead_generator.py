@@ -1056,6 +1056,13 @@ def scrape_google_maps():
     print(f"  {config.TXT_LEADS}", flush=True)
     print("="*40, flush=True)
 
+    # Safe Independent Post-Processing Step: Automatic Lead Prioritization
+    try:
+        import prioritizer
+        prioritizer.process_lead_prioritization()
+    except Exception as p_err:
+        print(f"Prioritization Notice: {p_err}", flush=True)
+
 
 if __name__ == "__main__":
     scrape_google_maps()

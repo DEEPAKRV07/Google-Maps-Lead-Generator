@@ -95,9 +95,12 @@ Unlike basic web scrapers that crash or lose data during network glitches, this 
 9. **Atomic Writes (`os.replace`)**: Ensures `.xlsx` files are written to `.tmp.xlsx` first to prevent file corruption.
 10. **Timestamped Backup System (`backups/`)**: Keeps rolling backups of `progress.json` and `all_leads.xlsx` (retaining the 10 latest sets).
 11. **Live Speed & ETA Monitor**: Outputs real-time extraction speed (`biz/min`) and estimated time to complete the current search batch.
-12. **Entity Classification**: Automatically labels businesses as `Chain Store`, `Corporate`, `Franchise`, `Local Shop`, or `Unknown`.
-13. **Lead Priority Matrix**: Ranks lead viability as `High` (Phone + Website + Email), `Medium`, or `Low`.
-14. **Dynamic Statistical Summary**: Generates `summary.xlsx` dynamically grouped by Category and Location.
+12. **Automatic Lead Prioritization System**: Evaluates each lead using an objective scoring algorithm (Email +30, Website +20, Phone +15, WhatsApp +15, LinkedIn +8, Facebook +5, Instagram +5, Rating ≥ 4.5 +8, Reviews > 100/500/1000 up to +20, Working Website +5).
+- **Priority Level Classification & Color Coding**: Categorizes leads into `A+` (95+), `A` (80–94), `B` (65–79), `C` (50–64), and `D` (<50) with professional Excel conditional formatting.
+- **Automated Lead Ranking**: Sorts leads by `Priority Score` (Desc), `Rating` (Desc), `Reviews` (Desc), and `Business Name` (Asc), assigning 1-based `Rank`.
+- **Next Action Strategy Column**: Generates actionable sales guidance (`Email First`, `WhatsApp Outreach`, `Call Business`, `Visit Website`, `Social Media Outreach`, `Manual Research`).
+- **Top Lead Workbooks Export**: Automatically exports `outputs/all_leads_prioritized.xlsx`, `outputs/top_25_leads.xlsx`, `outputs/top_50_leads.xlsx`, and `outputs/top_100_leads.xlsx`.
+- **Priority Analytics Summary Sheet**: Adds a dedicated `Priority Analytics` worksheet to `outputs/summary.xlsx` containing KPI tables, level distributions, and Top 10 leaderboards.
 15. **HTML Cache System (`cache/`)**: Saves raw HTML of visited business pages for offline audit.
 16. **Failure Screenshots (`screenshots/`)**: Automatically captures browser screenshots on extraction errors.
 17. **Memory Cleanup**: Periodically calls Python garbage collection (`gc.collect()`) every 50 leads to minimize RAM usage.
