@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project Output & Cache Data
+cache/*.html
+screenshots/*.png
+backups/*
+progress.json
+progress.json.tmp
+outputs/*.xlsx
+outputs/*.txt
+*.xlsx
+leads.txt
+
+# Exception: keep tracked files
+!categories.txt
+!locations.txt
+!outputs/.gitkeep
+!backups/.gitkeep
+!cache/.gitkeep
+!screenshots/.gitkeep
+
+# Environment & Testing
+.env
+.pytest_cache/

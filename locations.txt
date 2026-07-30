@@ -1,0 +1,21 @@
+Chennai, Tamil Nadu
+Thiruvallur, Tamil Nadu
+Kanchipuram, Tamil Nadu
+Chengalpattu, Tamil Nadu
+Vellore, Tamil Nadu
+
+Hyderabad, Telangana
+Secunderabad, Telangana
+
+Visakhapatnam, Andhra Pradesh
+Vijayawada, Andhra Pradesh
+
+Bengaluru, Karnataka
+Mysuru, Karnataka
+Mangaluru, Karnataka
+Hubballi, Karnataka
+Belagavi, Karnataka
+Shivamogga, Karnataka
+Tumakuru, Karnataka
+Davanagere, Karnataka
+Ballari, Karnataka

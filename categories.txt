@@ -1,0 +1,67 @@
+Furniture Store
+Interior Designer
+Modular Kitchen
+Home Decor Store
+Mattress Store
+Gift Shop
+Sports Store
+Book Store
+Stationery Store
+Toy Store
+Hotel
+Resort
+Restaurant
+Cafe
+Bakery
+Sweet Shop
+Jewellery Store
+Clothing Store
+Boutique
+Footwear Store
+Salon
+Beauty Parlour
+Spa
+Gym
+Fitness Center
+Yoga Studio
+Dental Clinic
+Hospital
+Medical Store
+Diagnostic Center
+Eye Clinic
+Pet Shop
+Pet Clinic
+Electronics Store
+Mobile Store
+Computer Store
+Laptop Store
+Printer Shop
+Hardware Store
+Paint Store
+Tiles Shop
+Electrical Shop
+Plumbing Store
+Automobile Dealer
+Car Service Center
+Bike Showroom
+Driving School
+Travel Agency
+Real Estate Agency
+Construction Company
+Architect
+Event Planner
+Wedding Hall
+Photography Studio
+School
+College
+Coaching Center
+Training Institute
+Law Firm
+CA Office
+Consultant
+Insurance Agency
+Finance Company
+Courier Service
+Printing Press
+Advertising Agency
+Marketing Agency
