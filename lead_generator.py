@@ -192,6 +192,7 @@ def load_progress():
 
     if not state:
         state = {
+            "searches_completed": 0,
             "current_category": "",
             "current_location": "",
             "current_business_index": 0,
@@ -211,6 +212,28 @@ def load_progress():
             "duplicates": [],
             "summary_records": []
         }
+    else:
+        # Guarantee every statistics key exists for backward compatibility with older progress.json files
+        state.setdefault("searches_completed", len(state.get("completed_batches", [])))
+        state.setdefault("current_category", "")
+        state.setdefault("current_location", "")
+        state.setdefault("current_business_index", 0)
+        state.setdefault("processed_urls", [])
+        state.setdefault("completed_batches", [])
+        state.setdefault("runtime_started", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        state.setdefault("last_checkpoint", "")
+        state.setdefault("total_businesses_seen", 0)
+        state.setdefault("total_exported", 0)
+        state.setdefault("duplicates_skipped", 0)
+        state.setdefault("runtime_today_seconds", 0)
+        state.setdefault("runtime_total_seconds", 0)
+        state.setdefault("avg_businesses_per_hour", 0.0)
+        state.setdefault("avg_contacts_per_hour", 0.0)
+        state.setdefault("all_leads", [])
+        state.setdefault("failed_leads", [])
+        state.setdefault("duplicates", [])
+        state.setdefault("summary_records", [])
+
     return state
 
 def save_progress(state, current_cat="", current_loc="", business_index=0, session_runtime_sec=0):
@@ -666,7 +689,7 @@ def scrape_google_maps():
                         page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=10000)
                     except PlaywrightTimeoutError:
                         print(f"No result feed found for query: {query}", flush=True)
-                        state["searches_completed"] += 1
+                        state["searches_completed"] = state.get("searches_completed", 0) + 1
                         completed_batches_set.add(batch_key)
                         state["completed_batches"] = list(completed_batches_set)
                         save_progress(state, category, location, total_counter, int(time.time() - start_time))
@@ -707,6 +730,7 @@ def scrape_google_maps():
                     print(f"Found {len(collected_place_urls)} place links for {query}.", flush=True)
 
                     batch_successful = 0
+                    batch_duplicates = 0
                     batch_failed = 0
                     batch_websites = 0
                     batch_phones = 0
@@ -859,6 +883,7 @@ def scrape_google_maps():
                             if is_dup:
                                 lead_record["Notes"] = f"Duplicate removed ({notes_str})"
                                 state["duplicates"].append(lead_record)
+                                batch_duplicates += 1
                                 print("Duplicate [YES] (Moved to duplicates)", flush=True)
                             else:
                                 state["all_leads"].append(lead_record)
@@ -954,13 +979,14 @@ def scrape_google_maps():
 
                     print(f"\n{category} - {location}", flush=True)
                     print(f"Businesses Found : {len(collected_place_urls)}", flush=True)
-                    print(f"Extracted        : {batch_successful}", flush=True)
-                    print(f"Failed           : {batch_failed}", flush=True)
+                    print(f"  ├─ Successful  : {batch_successful}", flush=True)
+                    print(f"  ├─ Duplicates  : {batch_duplicates}", flush=True)
+                    print(f"  └─ Failed      : {batch_failed}", flush=True)
                     print("-----------------------", flush=True)
 
                     category_stats[category] = category_stats.get(category, 0) + batch_successful
 
-                    state["searches_completed"] += 1
+                    state["searches_completed"] = state.get("searches_completed", 0) + 1
                     completed_batches_set.add(batch_key)
                     state["completed_batches"] = list(completed_batches_set)
                     save_progress(state, category, location, total_counter, int(time.time() - start_time))
@@ -1005,13 +1031,15 @@ def scrape_google_maps():
     for cat, count in category_stats.items():
         print(f"{cat:<25} : {count} leads", flush=True)
 
+    searches_comp = state.get("searches_completed", len(state.get("completed_batches", [])))
     print("\n" + "="*40, flush=True)
     print("FINAL SUMMARY", flush=True)
     print("="*40, flush=True)
-    print(f"Searches Completed     : {state['searches_completed']}", flush=True)
+    print(f"Searches Completed     : {searches_comp}", flush=True)
     print(f"Businesses Found       : {businesses_found}", flush=True)
-    print(f"Successful Extraction : {successful_extractions}", flush=True)
-    print(f"Failed Extraction     : {failed_extractions}", flush=True)
+    print(f"  ├─ Successful        : {successful_extractions}", flush=True)
+    print(f"  ├─ Duplicates        : {duplicates_removed}", flush=True)
+    print(f"  └─ Failed            : {failed_extractions}", flush=True)
     print(f"Phone Numbers          : {phones_found}", flush=True)
     print(f"Websites               : {websites_found}", flush=True)
     print(f"Emails                 : {emails_found}", flush=True)
@@ -1019,8 +1047,7 @@ def scrape_google_maps():
     print(f"Facebook               : {facebook_found}", flush=True)
     print(f"Instagram              : {instagram_found}", flush=True)
     print(f"LinkedIn               : {linkedin_found}", flush=True)
-    print(f"Duplicates Removed     : {duplicates_removed}", flush=True)
-    print(f"Manual Review          : {manual_review}", flush=True)
+    print(f"Manual Review Required : {manual_review}", flush=True)
     print("\nOutput:", flush=True)
     print(f"  {config.EXCEL_ALL}", flush=True)
     print(f"  {config.EXCEL_FAILED}", flush=True)
