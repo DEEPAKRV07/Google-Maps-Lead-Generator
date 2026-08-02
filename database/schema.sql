@@ -110,7 +110,10 @@ CREATE TABLE IF NOT EXISTS resume_state (
     location TEXT,
     business_index INTEGER DEFAULT 0,
     maps_url TEXT UNIQUE,
-    status TEXT DEFAULT 'pending',
+    status TEXT DEFAULT 'pending', -- 'pending', 'running', 'completed', 'failed', 'skipped'
+    worker_id TEXT,
+    attempt_count INTEGER DEFAULT 1,
+    last_error TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -148,4 +151,7 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE INDEX IF NOT EXISTS idx_businesses_maps_link ON businesses(google_maps_link);
 CREATE INDEX IF NOT EXISTS idx_businesses_phone ON businesses(phone);
 CREATE INDEX IF NOT EXISTS idx_businesses_priority ON businesses(priority_score DESC);
+CREATE INDEX IF NOT EXISTS idx_businesses_cat_loc ON businesses(category, location);
 CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
+CREATE INDEX IF NOT EXISTS idx_resume_cat_loc ON resume_state(category, location);
+CREATE INDEX IF NOT EXISTS idx_resume_status ON resume_state(status);

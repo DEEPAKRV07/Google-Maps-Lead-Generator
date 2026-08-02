@@ -209,18 +209,21 @@ def update_queue_item(maps_url, category, location, status="completed"):
         logger.error("database", f"Update queue SQLite error: {e}")
 
 
-def update_resume_item(category, location, index, maps_url, status="completed"):
+def update_resume_item(category, location, index, maps_url, status="completed", worker_id=None, attempt_count=1, last_error=None):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO resume_state (category, location, business_index, maps_url, status, updated_at)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO resume_state (category, location, business_index, maps_url, status, worker_id, attempt_count, last_error, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(maps_url) DO UPDATE SET
                 business_index=excluded.business_index,
                 status=excluded.status,
+                worker_id=excluded.worker_id,
+                attempt_count=excluded.attempt_count,
+                last_error=excluded.last_error,
                 updated_at=CURRENT_TIMESTAMP;
-        """, (category, location, index, maps_url, status))
+        """, (category, location, index, maps_url, status, worker_id, attempt_count, last_error))
         conn.commit()
         conn.close()
     except Exception as e:
