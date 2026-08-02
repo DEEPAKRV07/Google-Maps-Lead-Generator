@@ -6,9 +6,9 @@ resume_state records, daily logs, and round-robin scheduler task sequences.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import sqlite3
 import pandas as pd
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import scheduler
 
 print("==================================================")

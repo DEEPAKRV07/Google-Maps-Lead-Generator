@@ -1,15 +1,13 @@
 """
-Benchmark Script: Single-Threaded vs. Multi-Threaded Website Enrichment (4 Workers)
+Regression Test: Single-Threaded vs. Multi-Threaded Website Enrichment (4 Workers)
 """
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import time
-import requests
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import website_crawler
 
-# Sample set of real test websites
 TEST_SITES = [
     {"Business Name": "Store 1", "Website": "https://google.com", "Google Maps Link": "https://maps.google.com/test1"},
     {"Business Name": "Store 2", "Website": "https://microsoft.com", "Google Maps Link": "https://maps.google.com/test2"},
@@ -25,10 +23,7 @@ print("========================================")
 print("RUNNING BENCHMARK: SINGLE-THREADED")
 print("========================================")
 t0 = time.time()
-single_results = []
-for lead in TEST_SITES:
-    res = website_crawler.crawl_single_website(lead["Website"])
-    single_results.append(res)
+single_results = [website_crawler.crawl_single_website(lead["Website"]) for lead in TEST_SITES]
 single_time = round(time.time() - t0, 2)
 single_rate = round(len(TEST_SITES) / max(single_time, 0.1) * 60, 1)
 print(f"Single-Threaded Duration: {single_time} seconds ({single_rate} sites/min)")
