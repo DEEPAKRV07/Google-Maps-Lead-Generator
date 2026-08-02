@@ -23,6 +23,7 @@ import dashboard
 import antidetect
 import crm_exporter
 import ai_analyzer
+import scheduler
 
 # Reconfigure stdout for UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -659,13 +660,10 @@ def scrape_google_maps():
 
             total_counter = len(state.get("all_leads", [])) + len(state.get("failed_leads", []))
 
-            for category in CATEGORIES:
+            task_sequence = scheduler.get_task_sequence(CATEGORIES, LOCATIONS)
+            for category, location in task_sequence:
                 if time_limit_hit:
                     break
-
-                for location in LOCATIONS:
-                    if time_limit_hit:
-                        break
 
                     batch_key = f"{category}|{location}"
                     if batch_key in completed_batches_set:
