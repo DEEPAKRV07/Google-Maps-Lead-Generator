@@ -753,9 +753,13 @@ def scrape_google_maps():
                     batch_linkedin = 0
                     batch_manual_review = 0
 
-                    # Process place links
+                    # Process place links with item-level granular resume
+                    last_idx = db.get_last_resume_index(category, location)
+                    if last_idx > 0:
+                        logger.info("scraper", f"[RESUME] Batch '{category} in {location}' resuming after business item #{last_idx}")
+
                     for place_idx, place_url in enumerate(collected_place_urls):
-                        if place_url in processed_urls_set:
+                        if place_url in processed_urls_set or db.is_url_processed_in_db(place_url):
                             continue
 
                         total_counter += 1

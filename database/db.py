@@ -225,3 +225,42 @@ def update_resume_item(category, location, index, maps_url, status="completed"):
         conn.close()
     except Exception as e:
         logger.error("database", f"Update resume SQLite error: {e}")
+
+
+def is_url_processed_in_db(maps_url):
+    """
+    Checks if a Google Maps place URL is already saved in businesses or resume_state as completed/skipped.
+    """
+    if not maps_url:
+        return False
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM businesses WHERE google_maps_link = ?", (maps_url,))
+        if cursor.fetchone():
+            conn.close()
+            return True
+        cursor.execute("SELECT 1 FROM resume_state WHERE maps_url = ? AND status IN ('completed', 'skipped')", (maps_url,))
+        res = cursor.fetchone()
+        conn.close()
+        return bool(res)
+    except Exception as e:
+        logger.error("database", f"Check URL processed error: {e}")
+        return False
+
+
+def get_last_resume_index(category, location):
+    """
+    Returns the highest processed business_index for a category and location batch.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(business_index) FROM resume_state WHERE category = ? AND location = ? AND status = 'completed'", (category, location))
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0] is not None:
+            return row[0]
+    except Exception as e:
+        logger.error("database", f"Get resume index error: {e}")
+    return 0
