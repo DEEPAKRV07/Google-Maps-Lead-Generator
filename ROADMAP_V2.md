@@ -1,6 +1,6 @@
-# 🚀 Google-Maps-Lead-Generator v2.0 Enterprise Roadmap
+# 🚀 Google-Maps-Lead-Generator v2.0 Enterprise Master Architecture & Roadmap
 
-This document outlines the master architectural specifications, database directory layout, schema migration model, structured logging hierarchy, provider plugin framework, and prioritized feature roadmap for **v2.0 Enterprise Release** of **Google-Maps-Lead-Generator**.
+This document outlines the final, production-ready master architecture, data collection pipeline, normalized SQLite schema, structured logging hierarchy, provider plugin framework, and prioritized feature roadmap for **v2.0 Enterprise Release** of **Google-Maps-Lead-Generator**.
 
 ---
 
@@ -11,7 +11,7 @@ This document outlines the master architectural specifications, database directo
 ```text
 main (v1.0.0 Stable Production Tagged & Frozen)
 │
-├── feature/v2-database      (Priority 1: SQLite Storage Engine & Database Layout) ◄── ACTIVE BRANCH
+├── feature/v2-database      (Priority 1: SQLite Storage Engine & Schema) ◄── ACTIVE BRANCH
 ├── feature/v2-resume        (Priority 2: Granular Item-Level Resume Engine)
 ├── feature/v2-multithread   (Priority 3: Worker Queue & Parallel Crawling)
 ├── feature/v2-dashboard     (Priority 4: Dashboard & SQLite Analytics)
@@ -28,38 +28,44 @@ main (v1.0.0 Stable Production Tagged & Frozen)
 
 ---
 
-## ⚡ Master Data Pipeline Architecture
-
-SQLite (`database/db.sqlite3`) operates as the **master source of truth**. All user-facing Excel, TXT, CRM, and HTML reports are generated automatically as high-speed snapshots from SQLite.
+## ⚡ Master Data Collection & Processing Pipeline
 
 ```text
 Google Maps (Single Chromium Browser)
       │
       ▼
-Playwright Scraper / URL Collector
+Playwright Harvester & URL Collector
       │
       ▼
 SQLite Queue Engine (database/db.sqlite3)
+(States: Pending, Queued, Running, Retry, Completed, Skipped, Failed)
       │
       ├──────────────┐
       ▼              ▼
   Worker 1        Worker 2
       ▼              ▼
-  Worker 3        Worker 4  (Parallel Website Contact Extractors, MAX_WORKERS=4)
+  Worker 3        Worker 4  (Parallel Website Extractors, MAX_WORKERS=min(4, cpu_count))
       │
       ▼
-SQLite Master Database (database/db.sqlite3 - Master Source of Truth)
+Raw Businesses Storage (RawBusinesses Table)
+      │
+      ▼
+Business Validator Engine (Normalizes Phones, Emails, Ratings, Reviews, URLs)
+      │
+      ▼
+SQLite Master Database (Businesses & BusinessHistory Tables - Source of Truth)
       │
       ├───────────────────────────────┬──────────────────────────────┐
       │                               │                              │
       ▼                               ▼                              ▼
 Prioritizer Engine            Dashboard Engine              Export Engine
-(Scoring & Ranking)        (Excel & HTML Dashboard)     (On-Demand / Checkpoints)
+(Scoring & Ranking)        (Excel & HTML Dashboard)    (Profiles: Full, Sales, CRM)
       │                               │                              │
       └───────────────────────────────┴──────────────────────────────┘
                                       │
                                       ▼
                       Outputs Directory (outputs/)
+                      ├── outputs/YYYY-MM-DD/ (Historical Snapshot Archive)
                       ├── all_leads.xlsx
                       ├── all_leads_prioritized.xlsx
                       ├── top_25_leads.xlsx
@@ -75,43 +81,50 @@ Prioritizer Engine            Dashboard Engine              Export Engine
 
 ---
 
-## 💾 Storage & Recovery Policy
+## 💾 Storage & Output Policy
 
 | Component | Role & Function |
 |---|---|
-| **SQLite (`database/db.sqlite3`)** | ⭐ **Master Data Source of Truth** for all records, queue items, resume state, and metrics |
+| **SQLite (`database/db.sqlite3`)** | ⭐ **Master Source of Truth** for all raw/processed leads, queues, resume states, metrics, and audit logs |
 | **Emergency Backup (`progress.json`)** | 🛡️ **Disaster Recovery Backup** kept alongside SQLite for fallback restoration |
+| **Database Snapshots (`database/backups/`)** | 📸 **Database Rolling Snapshots** (`db_YYYYMMDD.sqlite`) generated periodically |
 | **Excel Exports (`outputs/*.xlsx`)** | 📊 **User-Friendly Spreadsheets** generated automatically on demand or at checkpoints |
+| **Historical Archive (`outputs/YYYY-MM-DD/`)** | 📁 **Timestamped Archive** preserving historical run snapshots without overwriting |
 | **HTML Dashboard (`outputs/dashboard.html`)** | 🌐 **Browser Dashboard** opening in any browser without requiring Microsoft Excel |
 | **TXT Export (`outputs/leads.txt`)** | 📝 **Plain Text Export** formatted for quick manual reading |
 | **Priority Exports (`top_N_leads.xlsx`)** | 🎯 **Sales-Ready Targets** sorted by score, level, and next action |
-| **Categorized Logs (`logs/*/*.log`)** | 🪵 **Audit Trail** separated into scraper, website, database, and error logs |
+| **Categorized Logs (`logs/*/*.log`)** | 🪵 **Audit Trail** separated into `scraper/`, `website/`, `database/`, and `errors/` |
 
 ---
 
-## 📁 Modular Directory Layout
+## 📁 Directory & Provider Plugin Architecture
 
 ```text
 Google-Maps-Lead-Generator/
 │
-├── lead_generator.py          # Main scraper runner
+├── lead_generator.py          # Main scraper runner (zero user workflow change)
 ├── prioritizer.py             # Lead prioritization post-processor
-├── config.py                  # System constants & pool parameters
+├── validator.py               # Data validator & normalization engine
+├── config.py                  # System constants & MAX_WORKERS pool logic
 │
 ├── database/                  # Master Database Directory
 │   ├── db.sqlite3             # SQLite master database file
 │   ├── schema.sql             # DDL schema definition script
-│   ├── migrations/            # Schema version evolution scripts (v2.0 -> v2.1 -> v2.2)
-│   └── backups/               # Database snapshot backups
+│   ├── migrations/            # Version tracking & schema migration scripts
+│   └── backups/               # Database snapshot backups (db_YYYYMMDD.sqlite)
 │
 ├── providers/                 # Plugin Provider Architecture
 │   ├── base_provider.py       # Abstract base provider interface
-│   ├── google_maps.py         # Google Maps plugin
-│   ├── openstreetmap.py       # OpenStreetMap plugin
-│   ├── bing_maps.py           # Bing Maps plugin
-│   ├── justdial.py            # JustDial plugin
-│   ├── indiamart.py           # IndiaMart plugin
-│   └── sulekha.py             # Sulekha plugin
+│   ├── google_maps/           # Google Maps modular plugin
+│   │   ├── search.py
+│   │   ├── extract.py
+│   │   ├── selectors.py
+│   │   └── utils.py
+│   ├── openstreetmap/         # OpenStreetMap modular plugin
+│   ├── bing_maps/             # Bing Maps modular plugin
+│   ├── justdial/              # JustDial modular plugin
+│   ├── indiamart/             # IndiaMart modular plugin
+│   └── sulekha/               # Sulekha modular plugin
 │
 ├── logs/                      # Sub-Categorized Logging Hierarchy
 │   ├── scraper/               # Google Maps navigation & selector logs
@@ -122,6 +135,7 @@ Google-Maps-Lead-Generator/
 ├── cache/                     # Cached raw HTML files
 ├── screenshots/               # Failure & validation screenshots
 ├── outputs/                   # Export directory (Excel, TXT, HTML, CRM)
+│   └── YYYY-MM-DD/            # Timestamped historical export archives
 └── progress.json              # Emergency disaster recovery JSON backup
 ```
 
@@ -129,7 +143,7 @@ Google-Maps-Lead-Generator/
 
 ## 🗄️ Master SQLite Database Schema (`database/schema.sql`)
 
-### 1. `Version` Table (Migration Tracker)
+### 1. `Version` Table
 ```sql
 CREATE TABLE IF NOT EXISTS version (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,7 +153,21 @@ CREATE TABLE IF NOT EXISTS version (
 );
 ```
 
-### 2. `Businesses` Table (Master Lead Records)
+### 2. `RawBusinesses` Table (Raw Unparsed Extracted Data)
+```sql
+CREATE TABLE IF NOT EXISTS raw_businesses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    raw_name TEXT,
+    raw_phone TEXT,
+    raw_website TEXT,
+    raw_rating TEXT,
+    raw_reviews TEXT,
+    google_maps_link TEXT UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 3. `Businesses` Table (Processed Normalized Master Lead Records)
 ```sql
 CREATE TABLE IF NOT EXISTS businesses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,8 +177,8 @@ CREATE TABLE IF NOT EXISTS businesses (
     search_location TEXT,
     location TEXT,
     address TEXT,
-    phone TEXT,
-    website TEXT,
+    phone TEXT, -- E.164 / normalized clean phone digits
+    website TEXT, -- Clean normalized URL
     email TEXT,
     whatsapp TEXT,
     facebook TEXT,
@@ -174,21 +202,36 @@ CREATE TABLE IF NOT EXISTS businesses (
 );
 ```
 
-### 3. `Queue` Table (Crawl Worker Queue)
+### 4. `BusinessHistory` Table (Multi-Run Trend Analysis)
+```sql
+CREATE TABLE IF NOT EXISTS business_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER,
+    rating REAL,
+    reviews INTEGER,
+    phone TEXT,
+    website TEXT,
+    website_status TEXT,
+    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(business_id) REFERENCES businesses(id)
+);
+```
+
+### 5. `Queue` Table (Crawl Worker Queue)
 ```sql
 CREATE TABLE IF NOT EXISTS queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     maps_url TEXT UNIQUE,
     category TEXT,
     location TEXT,
-    status TEXT DEFAULT 'pending', -- 'pending', 'running', 'completed', 'failed'
+    status TEXT DEFAULT 'pending', -- 'pending', 'queued', 'running', 'retry', 'completed', 'skipped', 'failed'
     retry_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### 4. `Sessions` Table (Structured Session Statistics)
+### 6. `Sessions` Table (Session Audit Tracking)
 ```sql
 CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -197,15 +240,17 @@ CREATE TABLE IF NOT EXISTS sessions (
     location TEXT,
     started_at TIMESTAMP,
     finished_at TIMESTAMP,
+    duration_seconds INTEGER DEFAULT 0,
+    browser_version TEXT,
+    worker_count INTEGER DEFAULT 4,
     businesses_found INTEGER DEFAULT 0,
     duplicates INTEGER DEFAULT 0,
     failed INTEGER DEFAULT 0,
-    duration_seconds INTEGER DEFAULT 0,
     avg_speed REAL DEFAULT 0.0
 );
 ```
 
-### 5. `ResumeState` Table (Granular Item-Level Checkpoint)
+### 7. `ResumeState` Table (Granular Item-Level Checkpoint)
 ```sql
 CREATE TABLE IF NOT EXISTS resume_state (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,7 +263,7 @@ CREATE TABLE IF NOT EXISTS resume_state (
 );
 ```
 
-### 6. `Contacts` Table
+### 8. `Contacts` Table
 ```sql
 CREATE TABLE IF NOT EXISTS contacts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,7 +276,7 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 ```
 
-### 7. `SocialLinks` Table
+### 9. `SocialLinks` Table
 ```sql
 CREATE TABLE IF NOT EXISTS social_links (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -243,7 +288,7 @@ CREATE TABLE IF NOT EXISTS social_links (
 );
 ```
 
-### 8. `Logs` Table
+### 10. `Logs` Table
 ```sql
 CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -256,19 +301,19 @@ CREATE TABLE IF NOT EXISTS logs (
 
 ---
 
-## 🎯 Prioritized Feature Implementation Sequence
+## 🎯 Prioritized Feature Implementation Roadmap
 
 1. **`feature/v2-database` (Priority #1 - ACTIVE)**:
-   - Establish `database/` directory layout, SQLite schema (`database/schema.sql`), and version tracking.
+   - Establish `database/` directory layout, SQLite schema (`database/schema.sql`), version tracker, and database backup engine.
+   - Implement `validator.py` data normalization layer (`RawBusinesses` -> `Businesses`).
    - Connect SQLite as master storage while generating all existing Excel and TXT exports seamlessly.
    - Maintain `progress.json` as an emergency fallback backup.
 
 2. **`feature/v2-resume` (Priority #2)**:
    - Implement item-level granular resume (`Category → Location → Business Index → Crawl State`).
-   - Interruption at Business #642 resumes at #643.
 
 3. **`feature/v2-multithread` (Priority #3)**:
-   - Decouple Chromium map harvester from website contact extractors using `ThreadPoolExecutor(max_workers=4)`.
+   - Decouple Chromium map harvester from website contact extractors using `ThreadPoolExecutor(max_workers=min(4, cpu_count))`.
 
 4. **`feature/v2-dashboard` (Priority #4)**:
    - Generate both `outputs/Dashboard.xlsx` and lightweight `outputs/dashboard.html` for browser-native analytics.
