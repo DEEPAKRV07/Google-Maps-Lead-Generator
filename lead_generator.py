@@ -660,7 +660,10 @@ def scrape_google_maps():
 
             total_counter = len(state.get("all_leads", [])) + len(state.get("failed_leads", []))
 
-            task_sequence = scheduler.get_task_sequence(CATEGORIES, LOCATIONS)
+            categories = load_list_from_file(config.CATEGORIES_FILE, ["Furniture Store", "Gift Shop", "Sports Store", "Hotel"])
+            locations = load_list_from_file(config.LOCATIONS_FILE, ["Chennai, Tamil Nadu", "Hyderabad, Telangana", "Bengaluru, Karnataka"])
+
+            task_sequence = scheduler.get_task_sequence(categories, locations)
             for category, location in task_sequence:
                 if time_limit_hit:
                     break
