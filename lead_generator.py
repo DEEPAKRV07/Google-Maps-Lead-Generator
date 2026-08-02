@@ -16,6 +16,9 @@ import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 import config
+import logger
+import validator
+import database.db as db
 
 # Reconfigure stdout for UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -234,6 +237,12 @@ def load_progress():
         state.setdefault("duplicates", [])
         state.setdefault("summary_records", [])
 
+        # Sync loaded progress leads into SQLite Master DB
+        for lead in state.get("all_leads", []):
+            if validate_lead(lead):
+                cleaned = validator.process_raw_lead(lead)
+                db.save_business_to_db(cleaned)
+
     return state
 
 def save_progress(state, current_cat="", current_loc="", business_index=0, session_runtime_sec=0):
@@ -340,6 +349,7 @@ def export_results(state):
         atomic_write_excel(df_sum, config.EXCEL_SUMMARY)
 
         create_auto_backup()
+        db.create_db_snapshot()
 
     except Exception as e:
         print(f"Warning: Could not write Excel files: {e}", flush=True)
@@ -614,6 +624,8 @@ def extract_place_details(page, default_category):
 # MAIN SCRAPING LOGIC WITH TIMED CHECKPOINT
 # ==========================================
 def scrape_google_maps():
+    db.init_db()
+    logger.info("scraper", "Starting Google Maps lead generator session...")
     state = load_progress()
     processed_urls_set = set(state.get("processed_urls", []))
     completed_batches_set = set(state.get("completed_batches", []))
@@ -893,6 +905,13 @@ def scrape_google_maps():
                                 existing_names_addresses.add(name_addr_key)
                                 batch_successful += 1
                                 print("Done", flush=True)
+
+                            # Process lead through validator layer & save to SQLite DB
+                            cleaned_record = validator.process_raw_lead(lead_record)
+                            db.save_business_to_db(cleaned_record)
+                            db.update_queue_item(place_url, category, location, "completed")
+                            db.update_resume_item(category, location, total_counter, place_url, "completed")
+                            logger.info("scraper", f"Saved business [{total_counter}]: {name}")
 
                             if official_website: batch_websites += 1
                             if phone_val: batch_phones += 1

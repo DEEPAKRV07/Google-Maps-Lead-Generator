@@ -51,3 +51,17 @@ leads.txt
 # Environment & Testing
 .env
 .pytest_cache/
+
+# Database & Logs
+database/db.sqlite3
+database/backups/*
+database/*.tmp*
+logs/*/*.log
+
+!database/.gitkeep
+!database/backups/.gitkeep
+!logs/.gitkeep
+!logs/scraper/.gitkeep
+!logs/website/.gitkeep
+!logs/database/.gitkeep
+!logs/errors/.gitkeep
