@@ -19,6 +19,7 @@ import config
 import logger
 import validator
 import database.db as db
+import dashboard
 
 # Reconfigure stdout for UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -350,6 +351,7 @@ def export_results(state):
 
         create_auto_backup()
         db.create_db_snapshot()
+        dashboard.generate_all_dashboards()
 
     except Exception as e:
         print(f"Warning: Could not write Excel files: {e}", flush=True)
