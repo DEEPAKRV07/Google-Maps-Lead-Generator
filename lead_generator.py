@@ -20,6 +20,7 @@ import logger
 import validator
 import database.db as db
 import dashboard
+import antidetect
 
 # Reconfigure stdout for UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -646,8 +647,11 @@ def scrape_google_maps():
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=config.HEADLESS, args=["--start-maximized"])
-            context = browser.new_context(viewport={"width": 1366, "height": 768})
+            vp = antidetect.get_random_viewport()
+            ua = antidetect.get_random_user_agent()
+            context = browser.new_context(viewport=vp, user_agent=ua)
             page = context.new_page()
+            pacing_engine = antidetect.AdaptivePacingEngine()
 
             total_counter = len(state.get("all_leads", [])) + len(state.get("failed_leads", []))
 
