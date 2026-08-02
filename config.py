@@ -34,6 +34,11 @@ MAX_LEADS_PER_LOCATION = 200
 HEADLESS = False  # Set to True for background execution
 
 # ==========================================
+# WORKER POOL & MULTITHREADING
+# ==========================================
+MAX_WORKERS = min(4, os.cpu_count() or 4)
+
+# ==========================================
 # TIMED SESSION & CHECKPOINT SETTINGS
 # ==========================================
 RUN_MODE = "timed"  # Options: "timed" or "continuous"
