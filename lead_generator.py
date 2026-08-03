@@ -776,14 +776,30 @@ def scrape_google_maps():
                     batch_linkedin = 0
                     batch_manual_review = 0
 
-                    # Process place links with item-level granular resume
-                    last_idx = db.get_last_resume_index(category, location)
-                    if last_idx > 0:
-                        logger.info("scraper", f"[RESUME] Batch '{category} in {location}' resuming after business item #{last_idx}")
+                    # Filter unprocessed URLs
+                    unprocessed_urls = [u for u in collected_place_urls if u not in processed_urls_set and not db.is_url_processed_in_db(u)]
 
-                    for place_idx, place_url in enumerate(collected_place_urls):
-                        if place_url in processed_urls_set or db.is_url_processed_in_db(place_url):
-                            continue
+                    if not unprocessed_urls:
+                        print(f"[COMPLETED TASK] All {len(collected_place_urls)} place links for '{query}' are already processed. Marking task complete.", flush=True)
+                        completed_batches_set.add(batch_key)
+                        state["completed_batches"] = list(completed_batches_set)
+                        db.update_queue_item(batch_key, category, location, "completed")
+                        save_progress(state, category, location, total_counter, int(time.time() - start_time))
+                        continue
+
+                    # Slice batch target (CATEGORY_BATCH_SIZE)
+                    batch_target = getattr(config, "CATEGORY_BATCH_SIZE", 5)
+                    urls_to_process = unprocessed_urls[:batch_target]
+
+                    last_idx = db.get_last_resume_index(category, location)
+                    print(f"\n====================================================", flush=True)
+                    print(f"SCHEDULER DISPATCH: {query}", flush=True)
+                    print(f"Resume Index  : #{last_idx}", flush=True)
+                    print(f"Batch Target  : {len(urls_to_process)} items", flush=True)
+                    print(f"Remaining     : {len(unprocessed_urls) - len(urls_to_process)} items", flush=True)
+                    print(f"====================================================", flush=True)
+
+                    for place_idx, place_url in enumerate(urls_to_process):
 
                         total_counter += 1
                         random_delay = random.uniform(config.RANDOM_DELAY_MIN, config.RANDOM_DELAY_MAX)
