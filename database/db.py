@@ -49,6 +49,7 @@ def init_db():
         conn.commit()
         conn.close()
         logger.info("database", f"SQLite Master DB initialized: {DB_FILE}")
+        cleanup_stale_locks()
     except Exception as e:
         logger.error("database", f"SQLite init error: {e}")
 
@@ -301,3 +302,20 @@ def get_last_resume_index(category, location):
     except Exception as e:
         logger.error("database", f"Get resume index error: {e}")
     return 0
+
+
+def cleanup_stale_locks():
+    """
+    Resets any 'running' queue or resume state items back to 'pending' on startup
+    to ensure worker crash recovery.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE queue SET status = 'pending' WHERE status = 'running';")
+        cursor.execute("UPDATE resume_state SET status = 'pending' WHERE status = 'running';")
+        conn.commit()
+        conn.close()
+        logger.info("database", "Cleaned up stale locks in queue and resume_state tables on startup.")
+    except Exception as e:
+        logger.error("database", f"Cleanup stale locks error: {e}")

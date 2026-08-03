@@ -814,9 +814,18 @@ def scrape_google_maps():
                         random_delay = random.uniform(config.RANDOM_DELAY_MIN, config.RANDOM_DELAY_MAX)
                         time.sleep(random_delay)
 
-                        # Garbage collection & RAM cleanup every 50 items
-                        if total_counter % 50 == 0:
+                        # Garbage collection & Browser context recycling every 100 items
+                        if total_counter % 100 == 0:
                             gc.collect()
+                            try:
+                                context.close()
+                                vp = antidetect.get_random_viewport()
+                                ua = antidetect.get_random_user_agent()
+                                context = browser.new_context(viewport=vp, user_agent=ua)
+                                page = context.new_page()
+                                logger.info("scraper", f"[BROWSER RECYCLE] Recycled Chromium context at item #{total_counter}")
+                            except Exception:
+                                pass
 
                         # Navigate directly to place URL
                         try:
