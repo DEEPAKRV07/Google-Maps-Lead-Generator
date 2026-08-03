@@ -55,6 +55,7 @@ leads.txt
 # Database & Local Archives
 archive/
 database/db.sqlite3
+database/*.sqlite3-journal
 database/backups/*
 database/*.tmp*
 logs/*/*.log

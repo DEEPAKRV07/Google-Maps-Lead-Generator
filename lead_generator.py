@@ -689,57 +689,64 @@ def scrape_google_maps():
                 print(f"SEARCHING: {query}", flush=True)
                 print(f"========================================", flush=True)
 
-                search_url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
-                try:
-                    page.goto(search_url, timeout=35000)
-                    page.wait_for_timeout(3000)
-                except Exception as e:
-                    print(f"Failed to load search page for {query}: {e}", flush=True)
-                    continue
-
-                # Dismiss consent dialogs if present
-                for consent_btn in ["button:has-text('Accept all')", "button:has-text('I agree')", "form[action*='consent'] button"]:
+                # Check SQLite Queue Cache first
+                cached_urls = db.get_pending_queue_items(category, location, limit=config.MAX_LEADS_PER_LOCATION)
+                if cached_urls:
+                    collected_place_urls = cached_urls
+                    print(f"[QUEUE CACHE HIT] Loaded {len(collected_place_urls)} pending URLs for '{query}' directly from SQLite queue.", flush=True)
+                    logger.info("scraper", f"[QUEUE CACHE HIT] Using {len(collected_place_urls)} cached URLs for '{query}' from SQLite.")
+                else:
+                    search_url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
                     try:
-                        if page.is_visible(consent_btn):
-                            page.click(consent_btn, timeout=2000)
-                            page.wait_for_timeout(1000)
-                    except Exception:
-                        pass
+                        page.goto(search_url, timeout=35000)
+                        page.wait_for_timeout(3000)
+                    except Exception as e:
+                        print(f"Failed to load search page for {query}: {e}", flush=True)
+                        continue
 
-                # Verify feed or search input
-                try:
-                    page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=12000)
-                except PlaywrightTimeoutError:
-                    print(f"Checking search input for {query}...", flush=True)
+                    # Dismiss consent dialogs if present
+                    for consent_btn in ["button:has-text('Accept all')", "button:has-text('I agree')", "form[action*='consent'] button"]:
+                        try:
+                            if page.is_visible(consent_btn):
+                                page.click(consent_btn, timeout=2000)
+                                page.wait_for_timeout(1000)
+                        except Exception:
+                            pass
+
+                    # Verify feed or search input
                     try:
-                        search_input = page.query_selector("input#searchboxinput")
-                        if search_input:
-                            search_input.fill(query)
-                            page.keyboard.press("Enter")
-                            page.wait_for_timeout(4000)
-                    except Exception:
-                        pass
+                        page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=12000)
+                    except PlaywrightTimeoutError:
+                        print(f"Checking search input for {query}...", flush=True)
+                        try:
+                            search_input = page.query_selector("input#searchboxinput")
+                            if search_input:
+                                search_input.fill(query)
+                                page.keyboard.press("Enter")
+                                page.wait_for_timeout(4000)
+                        except Exception:
+                            pass
 
-                try:
-                    page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=10000)
-                except PlaywrightTimeoutError:
-                    print(f"No result feed found for query: {query}", flush=True)
-                    state["searches_completed"] = state.get("searches_completed", 0) + 1
-                    completed_batches_set.add(batch_key)
-                    state["completed_batches"] = list(completed_batches_set)
-                    save_progress(state, category, location, total_counter, int(time.time() - start_time))
-                    continue
+                    try:
+                        page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=10000)
+                    except PlaywrightTimeoutError:
+                        print(f"No result feed found for query: {query}", flush=True)
+                        state["searches_completed"] = state.get("searches_completed", 0) + 1
+                        completed_batches_set.add(batch_key)
+                        state["completed_batches"] = list(completed_batches_set)
+                        save_progress(state, category, location, total_counter, int(time.time() - start_time))
+                        continue
 
-                collected_place_urls = []
-                last_count = 0
-                same_count_retries = 0
+                    collected_place_urls = []
+                    last_count = 0
+                    same_count_retries = 0
 
-                print("Scrolling for results...", flush=True)
-                while len(collected_place_urls) < config.MAX_LEADS_PER_LOCATION and same_count_retries < 5:
-                    anchors = page.query_selector_all("a[href*='/maps/place/']")
-                    for a in anchors:
-                        href = a.get_attribute("href")
-                        if href and href not in collected_place_urls:
+                    print("Scrolling for results...", flush=True)
+                    while len(collected_place_urls) < config.MAX_LEADS_PER_LOCATION and same_count_retries < 5:
+                        anchors = page.query_selector_all("a[href*='/maps/place/']")
+                        for a in anchors:
+                            href = a.get_attribute("href")
+                            if href and href not in collected_place_urls:
                                 collected_place_urls.append(href)
                                 if len(collected_place_urls) >= config.MAX_LEADS_PER_LOCATION:
                                     break
@@ -763,6 +770,8 @@ def scrape_google_maps():
                             last_count = len(collected_place_urls)
 
                     print(f"Found {len(collected_place_urls)} place links for {query}.", flush=True)
+                    # Persist harvested URLs into SQLite Queue
+                    db.save_urls_to_queue(collected_place_urls, category, location)
 
                     batch_successful = 0
                     batch_duplicates = 0

@@ -192,6 +192,40 @@ def get_all_businesses_from_db():
         return []
 
 
+def save_urls_to_queue(urls, category, location):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        for url in urls:
+            cursor.execute("""
+                INSERT INTO queue (maps_url, category, location, status, updated_at)
+                VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+                ON CONFLICT(maps_url) DO NOTHING;
+            """, (url, category, location))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error("database", f"Save URLs to queue SQLite error: {e}")
+
+
+def get_pending_queue_items(category, location, limit=50):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT maps_url FROM queue
+            WHERE category = ? AND location = ? AND status = 'pending'
+            ORDER BY id ASC
+            LIMIT ?;
+        """, (category, location, limit))
+        rows = cursor.fetchall()
+        conn.close()
+        return [r[0] for r in rows if r[0] and r[0].startswith("http")]
+    except Exception as e:
+        logger.error("database", f"Get pending queue items SQLite error: {e}")
+        return []
+
+
 def update_queue_item(maps_url, category, location, status="completed"):
     try:
         conn = get_connection()
