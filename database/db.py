@@ -190,7 +190,17 @@ def get_all_businesses_from_db():
         return leads
     except Exception as e:
         logger.error("database", f"Get businesses SQLite error: {e}")
-        return []
+def get_business_count():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM businesses")
+        cnt = cursor.fetchone()[0]
+        conn.close()
+        return cnt
+    except Exception as e:
+        logger.error("database", f"Get business count error: {e}")
+        return 0
 
 
 def save_urls_to_queue(urls, category, location):
