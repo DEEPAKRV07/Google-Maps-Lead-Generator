@@ -950,6 +950,12 @@ def scrape_google_maps():
 
                             print("------------------------", flush=True)
 
+                            # Return control to scheduler after processing CATEGORY_BATCH_SIZE items
+                            if batch_successful >= getattr(config, "CATEGORY_BATCH_SIZE", 5):
+                                print(f"[BATCH SWITCH] Reached {batch_successful} items for '{category} in {location}'. Switching to next round-robin category...", flush=True)
+                                logger.info("scraper", f"[ROUND-ROBIN] Reached batch size ({batch_successful}) for '{category} in {location}'. Switching category.")
+                                break
+
                         except Exception as ex:
                             print(f"Extraction Error: {ex}", flush=True)
                             screenshot_path = os.path.join(config.SCREENSHOTS_DIR, f"error_{total_counter}.png")

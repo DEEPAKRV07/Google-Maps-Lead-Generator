@@ -38,6 +38,7 @@ HEADLESS = False  # Set to True for background execution
 # ==========================================
 MAX_WORKERS = min(4, os.cpu_count() or 4)
 PROXY_ENABLED = False  # Set to True to enable proxy rotation from proxies.txt
+CATEGORY_BATCH_SIZE = 5  # Process N items per category before round-robin switching
 
 # ==========================================
 # TIMED SESSION & CHECKPOINT SETTINGS
