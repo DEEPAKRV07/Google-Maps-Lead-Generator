@@ -43,7 +43,7 @@ PROXY_ENABLED = False  # Set to True to enable proxy rotation from proxies.txt
 # TIMED SESSION & CHECKPOINT SETTINGS
 # ==========================================
 RUN_MODE = "timed"  # Options: "timed" or "continuous"
-MAX_RUNTIME_MINUTES = 15  # Run in controlled sessions of 45 minutes
+MAX_RUNTIME_MINUTES = 45  # Run in controlled sessions of 45 minutes
 
 RANDOM_DELAY_MIN = 1.0
 RANDOM_DELAY_MAX = 2.5

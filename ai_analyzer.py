@@ -80,7 +80,7 @@ def analyze_all_leads():
     df = pd.DataFrame(analyzed)
 
     try:
-        df.to_excel(AI_EXPORT_FILE, index=False)
+        df.to_excel(AI_EXPORT_FILE, index=False, engine='openpyxl')
         logger.info("database", f"Generated FORCRUX AI Need Analysis report: {AI_EXPORT_FILE}")
     except Exception as e:
         logger.error("database", f"Generate AI analysis report error: {e}")

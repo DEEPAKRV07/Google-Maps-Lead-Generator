@@ -24,6 +24,7 @@ import antidetect
 import crm_exporter
 import ai_analyzer
 import scheduler
+import prioritizer
 
 # Reconfigure stdout for UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -61,12 +62,22 @@ def atomic_write_json(filepath, data):
     tmp_path = filepath + ".tmp"
     with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    os.replace(tmp_path, filepath)
+    for attempt in range(3):
+        try:
+            os.replace(tmp_path, filepath)
+            break
+        except Exception:
+            time.sleep(0.2)
 
 def atomic_write_excel(df, filepath):
     tmp_path = filepath + ".tmp.xlsx"
     df.to_excel(tmp_path, index=False)
-    os.replace(tmp_path, filepath)
+    for attempt in range(3):
+        try:
+            os.replace(tmp_path, filepath)
+            break
+        except Exception:
+            time.sleep(0.2)
 
 def create_auto_backup():
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -355,6 +366,7 @@ def export_results(state):
 
         create_auto_backup()
         db.create_db_snapshot()
+        prioritizer.process_lead_prioritization()
         dashboard.generate_all_dashboards()
         crm_exporter.export_all_crms()
         ai_analyzer.analyze_all_leads()
@@ -668,66 +680,66 @@ def scrape_google_maps():
                 if time_limit_hit:
                     break
 
-                    batch_key = f"{category}|{location}"
-                    if batch_key in completed_batches_set:
-                        continue
+                batch_key = f"{category}|{location}"
+                if batch_key in completed_batches_set:
+                    continue
 
-                    query = f"{category} in {location}"
-                    print(f"\n========================================", flush=True)
-                    print(f"SEARCHING: {query}", flush=True)
-                    print(f"========================================", flush=True)
+                query = f"{category} in {location}"
+                print(f"\n========================================", flush=True)
+                print(f"SEARCHING: {query}", flush=True)
+                print(f"========================================", flush=True)
 
-                    search_url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
+                search_url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
+                try:
+                    page.goto(search_url, timeout=35000)
+                    page.wait_for_timeout(3000)
+                except Exception as e:
+                    print(f"Failed to load search page for {query}: {e}", flush=True)
+                    continue
+
+                # Dismiss consent dialogs if present
+                for consent_btn in ["button:has-text('Accept all')", "button:has-text('I agree')", "form[action*='consent'] button"]:
                     try:
-                        page.goto(search_url, timeout=35000)
-                        page.wait_for_timeout(3000)
-                    except Exception as e:
-                        print(f"Failed to load search page for {query}: {e}", flush=True)
-                        continue
+                        if page.is_visible(consent_btn):
+                            page.click(consent_btn, timeout=2000)
+                            page.wait_for_timeout(1000)
+                    except Exception:
+                        pass
 
-                    # Dismiss consent dialogs if present
-                    for consent_btn in ["button:has-text('Accept all')", "button:has-text('I agree')", "form[action*='consent'] button"]:
-                        try:
-                            if page.is_visible(consent_btn):
-                                page.click(consent_btn, timeout=2000)
-                                page.wait_for_timeout(1000)
-                        except Exception:
-                            pass
-
-                    # Verify feed or search input
+                # Verify feed or search input
+                try:
+                    page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=12000)
+                except PlaywrightTimeoutError:
+                    print(f"Checking search input for {query}...", flush=True)
                     try:
-                        page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=12000)
-                    except PlaywrightTimeoutError:
-                        print(f"Checking search input for {query}...", flush=True)
-                        try:
-                            search_input = page.query_selector("input#searchboxinput")
-                            if search_input:
-                                search_input.fill(query)
-                                page.keyboard.press("Enter")
-                                page.wait_for_timeout(4000)
-                        except Exception:
-                            pass
+                        search_input = page.query_selector("input#searchboxinput")
+                        if search_input:
+                            search_input.fill(query)
+                            page.keyboard.press("Enter")
+                            page.wait_for_timeout(4000)
+                    except Exception:
+                        pass
 
-                    try:
-                        page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=10000)
-                    except PlaywrightTimeoutError:
-                        print(f"No result feed found for query: {query}", flush=True)
-                        state["searches_completed"] = state.get("searches_completed", 0) + 1
-                        completed_batches_set.add(batch_key)
-                        state["completed_batches"] = list(completed_batches_set)
-                        save_progress(state, category, location, total_counter, int(time.time() - start_time))
-                        continue
+                try:
+                    page.wait_for_selector("a[href*='/maps/place/'], div[role='feed']", timeout=10000)
+                except PlaywrightTimeoutError:
+                    print(f"No result feed found for query: {query}", flush=True)
+                    state["searches_completed"] = state.get("searches_completed", 0) + 1
+                    completed_batches_set.add(batch_key)
+                    state["completed_batches"] = list(completed_batches_set)
+                    save_progress(state, category, location, total_counter, int(time.time() - start_time))
+                    continue
 
-                    collected_place_urls = []
-                    last_count = 0
-                    same_count_retries = 0
+                collected_place_urls = []
+                last_count = 0
+                same_count_retries = 0
 
-                    print("Scrolling for results...", flush=True)
-                    while len(collected_place_urls) < config.MAX_LEADS_PER_LOCATION and same_count_retries < 5:
-                        anchors = page.query_selector_all("a[href*='/maps/place/']")
-                        for a in anchors:
-                            href = a.get_attribute("href")
-                            if href and href not in collected_place_urls:
+                print("Scrolling for results...", flush=True)
+                while len(collected_place_urls) < config.MAX_LEADS_PER_LOCATION and same_count_retries < 5:
+                    anchors = page.query_selector_all("a[href*='/maps/place/']")
+                    for a in anchors:
+                        href = a.get_attribute("href")
+                        if href and href not in collected_place_urls:
                                 collected_place_urls.append(href)
                                 if len(collected_place_urls) >= config.MAX_LEADS_PER_LOCATION:
                                     break

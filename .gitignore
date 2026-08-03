@@ -52,7 +52,8 @@ leads.txt
 .env
 .pytest_cache/
 
-# Database & Logs
+# Database & Local Archives
+archive/
 database/db.sqlite3
 database/backups/*
 database/*.tmp*
